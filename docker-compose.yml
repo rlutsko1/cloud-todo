@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: cloud-todo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cloudtodo
+      POSTGRES_USER: cloudtodo
+      POSTGRES_PASSWORD: cloudtodo_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

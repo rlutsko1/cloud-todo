@@ -1,116 +1,61 @@
 package Cloud.ToDo.API.controller;
 
+import Cloud.ToDo.API.dto.TaskPatchRequest;
+import Cloud.ToDo.API.dto.TaskRequest;
 import Cloud.ToDo.API.entity.Priority;
 import Cloud.ToDo.API.entity.Status;
 import Cloud.ToDo.API.entity.Task;
-import Cloud.ToDo.API.repository.TaskRepository;
+import Cloud.ToDo.API.service.TaskService;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/tasks")
+@CrossOrigin(origins = "*")
 public class TaskController {
 
+    private final TaskService taskService;
 
-private final TaskRepository taskRepository;
-
-public TaskController(TaskRepository taskRepository) {
-    this.taskRepository = taskRepository;
-}
-
-@GetMapping
-public Page<Task> getAllTasks(
-        @RequestParam(required = false) Status status,
-        @RequestParam(required = false) Priority priority,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int limit
-) {
-    if (page < 0) {
-        page = 0;
+    public TaskController(TaskService taskService) {
+        this.taskService = taskService;
     }
 
-    if (limit < 1) {
-        limit = 10;
+    @GetMapping
+    public ResponseEntity<Page<Task>> getAllTasks(
+            @RequestParam(required = false) Status status,
+            @RequestParam(required = false) Priority priority,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(taskService.getTasks(status, priority, page, limit));
     }
 
-    if (limit > 100) {
-        limit = 100;
+    @GetMapping("/{id}")
+    public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.getTaskById(id));
     }
 
-    Pageable pageable = PageRequest.of(page, limit);
-
-    if (status != null && priority != null) {
-        return taskRepository.findByStatusAndPriority(status, priority, pageable);
+    @PostMapping
+    public ResponseEntity<Task> createTask(@Valid @RequestBody TaskRequest request) {
+        Task created = taskService.createTask(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    if (status != null) {
-        return taskRepository.findByStatus(status, pageable);
+    @PutMapping("/{id}")
+    public ResponseEntity<Task> updateTask(@PathVariable Long id, @Valid @RequestBody TaskRequest request) {
+        return ResponseEntity.ok(taskService.updateTask(id, request));
     }
 
-    if (priority != null) {
-        return taskRepository.findByPriority(priority, pageable);
+    @PatchMapping("/{id}")
+    public ResponseEntity<Task> patchTask(@PathVariable Long id, @RequestBody TaskPatchRequest patch) {
+        return ResponseEntity.ok(taskService.patchTask(id, patch));
     }
 
-    return taskRepository.findAll(pageable);
-}
-
-@GetMapping("/{id}")
-public Task getTask(@PathVariable Long id) {
-    return taskRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Task not found"));
-}
-
-@PostMapping
-public Task createTask(@RequestBody Task task) {
-    return taskRepository.save(task);
-}
-
-@PutMapping("/{id}")
-public Task updateTask(@PathVariable Long id, @RequestBody Task task) {
-    Task existing = taskRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Task not found"));
-
-    existing.setTitle(task.getTitle());
-    existing.setDescription(task.getDescription());
-    existing.setStatus(task.getStatus());
-    existing.setPriority(task.getPriority());
-    existing.setDueDate(task.getDueDate());
-
-    return taskRepository.save(existing);
-}
-
-@PatchMapping("/{id}")
-public Task patchTask(
-        @PathVariable Long id,
-        @RequestBody Task task
-) {
-    Task existing = taskRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Task not found"));
-
-    if (task.getStatus() != null) {
-        existing.setStatus(task.getStatus());
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
+        taskService.deleteTask(id);
+        return ResponseEntity.noContent().build();
     }
-
-    if (task.getPriority() != null) {
-        existing.setPriority(task.getPriority());
-    }
-
-    return taskRepository.save(existing);
-}
-
-@DeleteMapping("/{id}")
-public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
-    if (!taskRepository.existsById(id)) {
-        return ResponseEntity.notFound().build();
-    }
-
-    taskRepository.deleteById(id);
-
-    return ResponseEntity.noContent().build();
-}
-
-
 }
